@@ -40,4 +40,3 @@ class Server:
         if startIndex is None or endIndex is None:
             return []
         return self.dataset()[startIndex:endIndex]
-
