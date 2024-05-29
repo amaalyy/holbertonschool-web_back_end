@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 """
-this is the main class
+LRU Caching Module
 """
 from collections import OrderedDict
 BaseCaching = __import__('base_caching').BaseCaching
@@ -16,26 +16,46 @@ class LRUCache(BaseCaching):
 
     def __init__(self):
         """
-        this is the initialization method
+        Initialize the LRUCache object.
         """
         super().__init__()
         self.access_order = OrderedDict()
 
     def put(self, key, item):
         """
-        this is the put method
+        Add an item to the cache.
         """
         if key is not None and item is not None:
-            # Check if the cache is full
-            if len(self.cache_data) >= BaseCaching.MAX_ITEMS:
+            if key in self.cache_data:
+                # Update the item and move key to end
+                self.access_order.pop(key)
+            elif len(self.cache_data) >= BaseCaching.MAX_ITEMS:
                 # Discard the least recently used item (LRU)
                 lru_key = next(iter(self.access_order))
                 del self.access_order[lru_key]
                 del self.cache_data[lru_key]
                 print(f"DISCARD: {lru_key}")
+
             self.cache_data[key] = item
             self.access_order[key] = None
+            # Move the key to the end to mark it as recently used
+            self.access_order.move_to_end(key)
 
     def get(self, key):
-        """Get an item by key"""
-        return self.cache_data.get(key) if key is not None else None
+        """
+        Retrieve an item from the cache.
+        """
+        if key is None or key not in self.cache_data:
+            return None
+        
+        # Move the accessed key to the end to mark it as recently used
+        self.access_order.move_to_end(key)
+        return self.cache_data[key]
+
+    def print_cache(self):
+        """
+        Print the current state of the cache.
+        """
+        print("Current cache:")
+        for key in self.cache_data:
+            print(f"{key}: {self.cache_data[key]}")
