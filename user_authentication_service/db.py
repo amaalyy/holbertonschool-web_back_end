@@ -43,3 +43,10 @@ class DB:
                 return i
         raise NoResultFound
 
+    def update_user(self, user_id: int, **kwargs) -> None:
+        """ updates_user Method """
+        try:
+            self._session.execute(update(User).values(kwargs))
+            self._session.commit()
+        except Exception:
+            raise ValueError
