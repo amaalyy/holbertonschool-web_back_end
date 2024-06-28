@@ -10,9 +10,12 @@ from sqlalchemy.orm.exc import NoResultFound
 
 from user import Base
 from user import User
+
+
 class DB:
     """DB class
     """
+
     def __init__(self) -> None:
         """Initialize a new DB instance
         """
@@ -20,6 +23,7 @@ class DB:
         Base.metadata.drop_all(self._engine)
         Base.metadata.create_all(self._engine)
         self.__session = None
+
     @property
     def _session(self) -> Session:
         """Memoized session object
