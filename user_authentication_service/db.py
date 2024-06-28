@@ -7,6 +7,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.orm.session import Session
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.exc import InvalidRequestError
+from typing import TypeVar
 
 from user import Base, User
 
@@ -33,37 +34,45 @@ class DB:
         return self.__session
 
     def add_user(self, email: str, hashed_password: str) -> User:
-        """Save the user to the database
+        """summary : add user to db
         """
-        user = User(email=email, hashed_password=hashed_password)
-        self._session.add(user)
-        self._session.commit()
-        return user
+        new_user = User(email=email, hashed_password=hashed_password)
+        seesion = self._session
+        seesion.add(new_user)
+        seesion.commit()
+        return new_user
 
     def find_user_by(self, **kwargs) -> User:
-        """ Takes in arbitrary keyword arguments and
-        returns the first row found in the users
+        """ Finds user by key word args
+        Return: First row found in the users table as filtered by kwargs
         """
-        try:
-            result = self._session.query(User).filter_by(**kwargs).first()
-            if result is None:
-                raise NoResultFound
-            return result
-        except NoResultFound:
-            raise NoResultFound("No user found.")
-        except InvalidRequestError:
-            raise InvalidRequestError("Invalid query parameters.")
+        if not kwargs:
+            raise InvalidRequestError
+
+        col_names = User.__table__.columns.keys()
+        for key in kwargs.keys():
+            if key not in col_names:
+                raise InvalidRequestError
+
+        user = self._session.query(User).filter_by(**kwargs).first()
+
+        if not user:
+            raise NoResultFound
+
+        return user
 
     def update_user(self, user_id: int, **kwargs) -> None:
-        """ Takes as argument a required user_id integer and
-            arbitrary keyword arguments, and returns None.
+        """ Update users attributes
+        Returns: None
         """
         user = self.find_user_by(id=user_id)
 
+        column_names = User.__table__.columns.keys()
+        for key in kwargs.keys():
+            if key not in column_names:
+                raise ValueError
+
         for key, value in kwargs.items():
-            if hasattr(user, key):
-                setattr(user, key, value)
-            else:
-                raise ValueError("Invalid attribute: {}".format(key))
+            setattr(user, key, value)
 
         self._session.commit()
