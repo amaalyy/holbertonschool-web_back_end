@@ -1,29 +1,56 @@
 #!/usr/bin/env python3
-"""Filter_datum module
-"""
+''' 0. Regex-ing: filter_datum
+    1. Log formatter: class RedactingFormatter
+    2. Create logger
+    3. Connect to secure database
+    4. Read and filter data
+'''
 
 import re
 from typing import List
 import logging
-import os
 import mysql.connector
+from os import getenv
 
 
 PII_FIELDS = ('name', 'email', 'phone', 'ssn', 'password')
 
 
-def filter_datum(fields: List[str], redaction: str,
-                 message: str, separator: str) -> str:
-    """Function that returns the log message obfuscated
-    """
-    for field in fields:
-        message = re.sub(f"{field}=[^;{separator}]*",
-                         f"{field}={redaction}", message)
+def filter_datum(fields: List[str], redaction: str, message: str,
+                 separator: str) -> str:
+    ''' Description: Regex-ing - Write a function called filter_datum that
+                     returns the log message obfuscated:
+
+        Arguments:
+            fields: a list of strings representing all fields to obfuscate
+            redaction: a string representing by what the field will be
+                       obfuscated
+            message: a string representing the log line
+            separator: a string representing by which character is
+                           separating all fields in the log line (message)
+        The function should use a regex to replace occurrences of certain
+        field values.
+        filter_datum should be less than 5 lines long and use re.sub to
+        perform the substitution with a single regex.
+    '''
+
+    for i in fields:
+        message = re.sub(i + "=.*?" + separator,
+                         i + "=" + redaction + separator,
+                         message)
     return message
 
 
 class RedactingFormatter(logging.Formatter):
     """ Redacting Formatter class
+        Description: Update the class to accept a list of strings fields
+                     constructor argument.
+
+        Implement the format method to filter values in incoming log records
+        using filter_datum. Values for fields in fields should be filtered.
+
+        DO NOT extrapolate FORMAT manually. The format method should be less
+        than 5 lines long
     """
 
     REDACTION = "***"
@@ -31,66 +58,99 @@ class RedactingFormatter(logging.Formatter):
     SEPARATOR = ";"
 
     def __init__(self, fields: List[str]):
-        """ Initializes the instance of the RedactingFormatter
-        """
-        super().__init__(self.FORMAT)
+        """ Constructor Method """
+        super(RedactingFormatter, self).__init__(self.FORMAT)
         self.fields = fields
 
     def format(self, record: logging.LogRecord) -> str:
-        """ Method to filter values in incoming log records
-        """
-        original_message = super().format(record)
+        """ Filters values in incoming log records using filter_datum """
         return filter_datum(self.fields, self.REDACTION,
-                            original_message, self.SEPARATOR)
+                            super(RedactingFormatter, self).format(record),
+                            self.SEPARATOR)
 
 
 def get_logger() -> logging.Logger:
-    """ Function that takes no arguments and returns a logging.Logger.
-    """
-    logger = logging.getLogger("user_data")
-    logger.setLevel(logging.INFO)
-    logger.propagate = False
+    ''' Description: Implement a get_logger function that takes no arguments
+                     and returns a logging.Logger object.
 
-    stream_handler = logging.StreamHandler()
+        The logger should be named "user_data" and only log up to logging.INFO
+        level. It should not propagate messages to other loggers. It should
+        have a StreamHandler with RedactingFormatter as formatter.
+
+        Create a tuple PII_FIELDS constant at the root of the module containing
+        the fields from user_data.csv that are considered PII. PII_FIELDS can
+        contain only 5 fields - choose the right list of fields that can are
+        considered as "important" PIIs or information that you must hide in
+        your logs. Use it to parameterize the formatter.
+    '''
+    log = logging.getLogger('user_data')
+    log.setLevel(logging.INFO)
+    log.propagate = False
+
+    sh = logging.StreamHandler()
     formatter = RedactingFormatter(PII_FIELDS)
-    stream_handler.setFormatter(formatter)
-    logger.addHandler(stream_handler)
+    sh.setFormatter(formatter)
+    log.addHandler(sh)
 
-    return logger
+    return log
 
 
 def get_db() -> mysql.connector.connection.MySQLConnection:
-    """ Function that returns a connector to the database.
-    """
-    db_username = os.getenv('PERSONAL_DATA_DB_USERNAME', 'root')
-    db_password = os.getenv('PERSONAL_DATA_DB_PASSWORD', '')
-    db_host = os.getenv('PERSONAL_DATA_DB_HOST', 'localhost')
-    db_name = os.getenv('PERSONAL_DATA_DB_NAME', 'my_db')
+    ''' Description: you will connect to a secure holberton database to read a
+                     users table. The database is protected by a username and
+                     password that are set as environment variables on the
+                     server named PERSONAL_DATA_DB_USERNAME (set the default as
+                     "root"), PERSONAL_DATA_DB_PASSWORD (set the default as an
+                     empty string) and PERSONAL_DATA_DB_HOST (set the default
+                     as "localhost").
 
-    connection = mysql.connector.connect(
-        user=db_username,
-        password=db_password,
-        host=db_host,
-        database=db_name
-    )
+        The database name is stored in PERSONAL_DATA_DB_NAME.
 
-    return connection
+        Implement a get_db function that returns a connector to the database
+        (mysql.connector.connection.MySQLConnection object).
+
+           - Use the os module to obtain credentials from the environment
+           - Use the module mysql-connector-python to connect to the MySQL
+             database (pip3 install mysql-connector-python)
+    '''
+    connection_db = mysql.connector.connection.MySQLConnection(
+        user=getenv('PERSONAL_DATA_DB_USERNAME', 'root'),
+        password=getenv('PERSONAL_DATA_DB_PASSWORD', ''),
+        host=getenv('PERSONAL_DATA_DB_HOST', 'localhost'),
+        database=getenv('PERSONAL_DATA_DB_NAME'))
+
+    return connection_db
 
 
 def main():
-    """ Function that takes no arguments and returns nothing
-    """
-    db_connection = get_db()
-    cursor = db_connection.cursor()
+    '''
+        Description: Implement a main function that takes no arguments and
+                     returns nothing.
+
+        The function will obtain a database connection using get_db and
+        retrieve all rows in the users table and display each row under a
+        filtered format
+
+        Filtered fields:
+                          name
+                          email
+                          phone
+                          ssn
+                          password
+    '''
+    database = get_db()
+    cursor = database.cursor()
     cursor.execute("SELECT * FROM users;")
-    logger = get_logger()
+    fields = [i[0] for i in cursor.description]
+
+    log = get_logger()
 
     for row in cursor:
-        row_str = f"name={row[0]}; email={row[1]}; phone={row[2]}; ssn={row[3]}; password={row[4]};"
-        logger.info(row_str)
+        str_row = ''.join(f'{f}={str(r)}; ' for r, f in zip(row, fields))
+        log.info(str_row.strip())
 
     cursor.close()
-    db_connection.close()
+    database.close()
 
 
 if __name__ == '__main__':
