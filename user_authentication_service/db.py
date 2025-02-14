@@ -76,13 +76,3 @@ class DB:
             setattr(user, key, value)
 
         self._session.commit()
-
-
-
-
-
-
-
-
-
-
