@@ -4,11 +4,9 @@
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.orm.session import Session
-from sqlalchemy.orm.exc import NoResultFound
+from sqlalchemy.orm import Session
 from sqlalchemy.exc import InvalidRequestError
-from typing import TypeVar
-
+from sqlalchemy.orm.exc import NoResultFound
 from user import Base, User
 
 
@@ -34,45 +32,29 @@ class DB:
         return self.__session
 
     def add_user(self, email: str, hashed_password: str) -> User:
-        """summary : add user to db
-        """
+        """creation of a new User with the given email and hashed password"""
         new_user = User(email=email, hashed_password=hashed_password)
-        seesion = self._session
-        seesion.add(new_user)
-        seesion.commit()
+
+        self._session.add(new_user)
+        self._session.commit()
+
         return new_user
 
     def find_user_by(self, **kwargs) -> User:
-        """ Finds user by key word args
-        Return: First row found in the users table as filtered by kwargs
-        """
-        if not kwargs:
+        """User finder method"""
+        if kwargs is None:
             raise InvalidRequestError
-
-        col_names = User.__table__.columns.keys()
-        for key in kwargs.keys():
-            if key not in col_names:
-                raise InvalidRequestError
-
         user = self._session.query(User).filter_by(**kwargs).first()
-
-        if not user:
+        if user is None:
             raise NoResultFound
-
         return user
 
     def update_user(self, user_id: int, **kwargs) -> None:
-        """ Update users attributes
-        Returns: None
-        """
-        user = self.find_user_by(id=user_id)
-
-        column_names = User.__table__.columns.keys()
-        for key in kwargs.keys():
-            if key not in column_names:
-                raise ValueError
-
+        """user update method"""
+        uid = self.find_user_by(id=user_id)
         for key, value in kwargs.items():
-            setattr(user, key, value)
-
+            if hasattr(uid, key):
+                setattr(uid, key, value)
+            else:
+                raise ValueError
         self._session.commit()
